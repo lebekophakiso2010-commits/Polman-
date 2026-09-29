@@ -1,0 +1,20 @@
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>PolMan Sign Up</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<style>body{margin:0;background:#071b34;color:#fff;font-family:system-ui;display:flex;justify-content:center;padding:20px}.card{background:#132a4a;width:100%;max-width:380px;padding:22px;border-radius:16px} input{width:100%;padding:13px;margin:6px 0;border-radius:10px;border:1px solid #244166;background:#0d2241;color:#fff}.btn{width:100%;padding:13px;background:#00e5ff;border:0;border-radius:10px;font-weight:800;margin-top:8px}</style>
+</head><body><div class="card">
+<img src="./icon-512.png" width="70" style="display:block;margin:auto;border-radius:16px">
+<h2 style="text-align:center">Create PolMan Account</h2>
+<input id="fullName" placeholder="Full Name" autocomplete="off">
+<input id="username" placeholder="Username" autocomplete="off" spellcheck="false">
+<input id="phone" placeholder="Phone +266..." autocomplete="off" inputmode="tel">
+<input id="password" type="password" placeholder="Password">
+<input id="confirm" type="password" placeholder="Confirm Password">
+<button class="btn" onclick="signup()">Sign Up</button>
+<p style="text-align:center;font-size:13px"><a href="./login.html" style="color:#00e5ff">Login</a></p>
+</div><script>
+const firebaseConfig = { apiKey: "AIzaSyBPeZKGJy3omJHxgQ7JD6uqcvTP0eqDbrw", authDomain: "polman-7f22f.firebaseapp.com", databaseURL: "https://polman-7f22f-default-rtdb.firebaseio.com", projectId: "polman-7f22f", storageBucket: "polman-7f22f.firebasestorage.app", messagingSenderId: "838743826409", appId: "1:838743826409:web:fca7fea3d701d1aff0b578" };
+firebase.initializeApp(firebaseConfig); const auth=firebase.auth(), db=firebase.firestore();
+async function signup(){ const fullName=document.getElementById('fullName').value.trim(); const username=document.getElementById('username').value.toLowerCase().trim(); const phone=document.getElementById('phone').value.trim(); const pass=document.getElementById('password').value; const confirm=document.getElementById('confirm').value; if(!fullName||!username||!phone||!pass) return alert("Fill all"); if(pass!==confirm) return alert("Passwords no match"); if((await db.collection('usernames').doc(username).get()).exists) return alert("Username taken"); if((await db.collection('phones').doc(phone).get()).exists) return alert("Phone taken"); const email=username+"@polman.chat"; const cred=await auth.createUserWithEmailAndPassword(email,pass); const uid=cred.user.uid; await db.collection('users').doc(uid).set({uid,username,displayName:fullName,phone,email,photoUrl:'',createdAt:firebase.firestore.FieldValue.serverTimestamp(),banned:false,flagCount:0,online:true}); await db.collection('usernames').doc(username).set({uid}); await db.collection('phones').doc(phone).set({uid,username}); location.href="./index.html"; }
+</script></body></html>
