@@ -1,0 +1,17 @@
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Feed</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<style>body{margin:0;background:#071b34;color:#fff;font-family:system-ui} header{background:#102a4f;padding:12px;display:flex;gap:10px;align-items:center}.post{background:#132a4a;margin:10px;border-radius:14px;padding:12px}</style>
+</head><body>
+<header><button onclick="location.href='./index.html'" style="background:0;border:0;color:#fff;font-size:20px">←</button><b>PolMan Feed</b></header>
+<div style="padding:12px;display:flex;gap:8px;background:#102a4f"><input id="postText" placeholder="What's on your mind?" style="flex:1;padding:12px;border-radius:20px;border:0;background:#0d2241;color:#fff"><button onclick="createPost()" style="background:#00e5ff;border:0;border-radius:20px;padding:0 18px;font-weight:800">Post</button></div>
+<div id="feed"></div>
+<script>
+const firebaseConfig = { apiKey: "AIzaSyBPeZKGJy3omJHxgQ7JD6uqcvTP0eqDbrw", authDomain: "polman-7f22f.firebaseapp.com", databaseURL: "https://polman-7f22f-default-rtdb.firebaseio.com", projectId: "polman-7f22f", storageBucket: "polman-7f22f.firebasestorage.app", messagingSenderId: "838743826409", appId: "1:838743826409:web:fca7fea3d701d1aff0b578" };
+firebase.initializeApp(firebaseConfig); const auth=firebase.auth(), db=firebase.firestore(); let me=null;
+auth.onAuthStateChanged(async u=>{ if(!u) location.href="./login.html"; else { let d=await db.collection('users').doc(u.uid).get(); me=d.data(); loadFeed(); } });
+function loadFeed(){ db.collection('posts').orderBy('time','desc').limit(50).onSnapshot(s=>{ let h=""; s.forEach(doc=>{ let p=doc.data(); h+=`<div class="post"><div style="display:flex;gap:10px;align-items:center"><img src="${p.photo||'./icon-512.png'}" width="36" style="border-radius:50%"><div><b>${p.displayName}</b><br><small style="color:#8fb0d1">@${p.username} • ${p.time?.toDate?new Date(p.time.toDate()).toLocaleString():''}</small></div></div><p style="margin-top:8px">${p.text}</p><div style="display:flex;gap:16px;margin-top:8px;color:#8fb0d1"><span onclick="like('${doc.id}')">❤️ ${p.likes||0}</span></div></div>`; }); document.getElementById('feed').innerHTML=h; }); }
+async function createPost(){ let t=document.getElementById('postText').value.trim(); if(!t) return; document.getElementById('postText').value=''; await db.collection('posts').add({text:t,uid:me.uid,username:me.username,displayName:me.displayName,photo:me.photoUrl||'',time:firebase.firestore.FieldValue.serverTimestamp(),likes:0,expireAt:new Date(Date.now()+30*24*3600*1000)}); }
+async function like(id){ let ref=db.collection('posts').doc(id); let d=await ref.get(); await ref.update({likes:(d.data().likes||0)+1}); }
+</script></body></html>
