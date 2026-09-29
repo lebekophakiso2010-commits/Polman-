@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>PolMan Messenger</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#00e5ff">
+<link rel="icon" href="./icon-512.png">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0} body{font-family:system-ui;background:#071b34;color:#fff;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{background:#102a4f;padding:12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #1e3f68}
+header img{width:36px;height:36px;border-radius:50%}
+#tabs{display:flex;background:#102a4f}.tab{flex:1;padding:12px;text-align:center;color:#8fb0d1;font-weight:700;border-bottom:3px solid transparent;cursor:pointer;font-size:13px}
+.tab.active{color:#00e5ff;border-bottom-color:#00e5ff}
+#view{flex:1;overflow:auto;background:#071b34}
+.row{display:flex;gap:12px;padding:12px;border-bottom:1px solid #142d51;align-items:center;cursor:pointer}
+.row img{width:48px;height:48px;border-radius:50%;object-fit:cover}
+.fab{position:fixed;bottom:20px;right:20px;width:56px;height:56px;border-radius:50%;background:#00e5ff;border:0;font-size:30px;font-weight:800;box-shadow:0 4px 12px rgba(0,229,255,.4);z-index:10}
+#splash{position:fixed;inset:0;background:#071b34;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column}
+#lockScreen{position:fixed;inset:0;background:rgba(7,27,52,.92);backdrop-filter:blur(12px);z-index:9998;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+#lockScreen.show{display:flex}
+.lock-card{background:#132a4a;padding:24px;border-radius:20px;width:100%;max-width:340px;text-align:center;border:1px solid #244166}
+.lock-input{width:100%;padding:14px;margin:12px 0;border-radius:12px;border:1px solid #244166;background:#0d2241;color:#fff;font-size:22px;letter-spacing:12px;text-align:center}
+.badge{font-size:10px;background:#00e5ff;color:#001a2a;padding:2px 6px;border-radius:10px;margin-left:6px}
+.online{width:10px;height:10px;background:#00ff88;border-radius:50%;display:inline-block;margin-left:6px}
+</style>
+</head>
+<body>
+<div id="splash"><img src="./icon-512.png" width="90" style="border-radius:18px"><h2 style="color:#00e5ff;letter-spacing:3px;margin-top:10px">POLMAN</h2><small style="color:#8fb0d1;margin-top:8px">30 days auto-delete • E2E</small></div>
+<div id="lockScreen"><div class="lock-card">
+<img src="./icon-512.png" width="70" style="border-radius:16px"><h3 style="margin-top:12px">POLMAN LOCKED</h3>
+<p style="color:#8fb0d1;font-size:13px;margin-top:6px">Enter PIN or Fingerprint</p>
+<input id="pinInput" class="lock-input" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+<div id="pinError" style="color:#ff5a5a;font-size:13px;height:18px"></div>
+<button onclick="unlockWithPin()" style="width:100%;padding:12px;background:#00e5ff;border:0;border-radius:10px;font-weight:800;margin-top:6px">Unlock</button>
+<button onclick="unlockWithBio()" style="width:100%;padding:12px;background:#1a3a5f;border:1px solid #244166;color:#fff;border-radius:10px;margin-top:8px">🔓 Fingerprint / Face ID</button>
+<button onclick="firebase.auth().signOut()" style="background:0;border:0;color:#5a7a9a;margin-top:12px;font-size:12px">Logout</button>
+</div></div>
+<header>
+<img id="myPic" src="./icon-512.png"><div style="flex:1"><div id="myName" style="font-weight:800">PolMan</div><div id="myUser" style="font-size:11px;color:#8fb0d1">Loading... <span id="onlineDot" class="online"></span></div></div>
+<button onclick="openLockSettings()" style="background:0;border:0;color:#fff;font-size:20px;margin-right:8px">🔒</button>
+<button onclick="firebase.auth().signOut()" style="background:0;border:0;color:#8fb0d1;font-size:12px">Logout</button>
+</header>
+<div id="tabs">
+<div class="tab active" id="tab-chats" onclick="showTab('chats')">CHATS</div>
+<div class="tab" onclick="showTab('status')">STATUS</div>
+<div class="tab" onclick="showTab('calls')">CALLS</div>
+<div class="tab" onclick="location.href='./feed.html'">FEED</div>
+</div>
+<div id="view"></div>
+<button class="fab" id="fabBtn" onclick="handleFab()">+</button>
+<div id="lockSettings" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;padding:20px">
+<div style="background:#132a4a;padding:20px;border-radius:16px;width:100%;max-width:340px">
+<h3>App Lock</h3>
+<input id="newPin" placeholder="New 4-digit PIN" inputmode="numeric" maxlength="4" style="width:100%;padding:12px;margin:10px 0;border-radius:10px;border:1px solid #244166;background:#0d2241;color:#fff;letter-spacing:8px;text-align:center">
+<button onclick="enableLock()" style="width:100%;padding:12px;background:#00e5ff;border:0;border-radius:10px;font-weight:800">Enable Lock + Fingerprint</button>
+<button onclick="disableLock()" style="width:100%;padding:10px;background:0;border:1px solid #244166;color:#8fb0d1;border-radius:10px;margin-top:8px">Disable Lock</button>
+<button onclick="document.getElementById('lockSettings').style.display='none'" style="width:100%;padding:10px;background:0;border:0;color:#5a7a9a;margin-top:6px">Close</button>
+</div>
+</div>
+<script>
+const firebaseConfig = { apiKey: "AIzaSyBPeZKGJy3omJHxgQ7JD6uqcvTP0eqDbrw", authDomain: "polman-7f22f.firebaseapp.com", databaseURL: "https://polman-7f22f-default-rtdb.firebaseio.com", projectId: "polman-7f22f", storageBucket: "polman-7f22f.firebasestorage.app", messagingSenderId: "838743826409", appId: "1:838743826409:web:fca7fea3d701d1aff0b578" };
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth(), db=firebase.firestore();
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+setTimeout(()=>document.getElementById('splash').remove(),1200);
+function getStoredPin(){ try{ return atob(localStorage.getItem('polman_pin')||''); }catch{ return '' } }
+function isLockEnabled(){ return!!localStorage.getItem('polman_pin'); }
+function showLock(){ if(isLockEnabled()){ document.getElementById('lockScreen').classList.add('show'); document.getElementById('pinInput').value=''; document.getElementById('pinError').textContent=''; } }
+function openLockSettings(){ document.getElementById('lockSettings').style.display='flex'; }
+function enableLock(){ let p=document.getElementById('newPin').value.trim(); if(!/^\d{4}$/.test(p)) return alert('Enter 4 digits'); localStorage.setItem('polman_pin', btoa(p)); localStorage.setItem('polman_bio','yes'); alert('Lock Enabled!'); document.getElementById('lockSettings').style.display='none'; registerBiometric(); }
+function disableLock(){ localStorage.removeItem('polman_pin'); localStorage.removeItem('polman_bio'); alert('Lock Disabled'); document.getElementById('lockSettings').style.display='none'; }
+function unlockWithPin(){ let inp=document.getElementById('pinInput').value.trim(); if(inp===getStoredPin()){ document.getElementById('lockScreen').classList.remove('show'); } else{ document.getElementById('pinError').textContent='Wrong PIN'; } }
+async function registerBiometric(){ try{ if(!window.PublicKeyCredential) return; await navigator.credentials.create({publicKey:{challenge:new Uint8Array(32),rp:{name:"PolMan"},user:{id:new Uint8Array(16),name:"polman",displayName:"PolMan"},pubKeyCredParams:[{alg:-7,type:"public-key"}],authenticatorSelection:{userVerification:"required"},timeout:60000,attestation:"none"}}); }catch(e){} }
+async function unlockWithBio(){ try{ if(!window.PublicKeyCredential){ unlockWithPin(); return; } await navigator.credentials.get({publicKey:{challenge:new Uint8Array(32),userVerification:"required",timeout:60000}}); document.getElementById('lockScreen').classList.remove('show'); }catch(e){ document.getElementById('pinError').textContent='Fingerprint failed, use PIN'; } }
+let hiddenTime=0; document.addEventListener('visibilitychange',()=>{ if(document.hidden){ hiddenTime=Date.now(); } else{ if(Date.now()-hiddenTime>1500 && isLockEnabled()) showLock(); } });
+window.addEventListener('load',()=>{ setTimeout(()=>{ if(isLockEnabled()) showLock(); },1300); });
+let currentTab='chats'; let myUid=null;
+auth.onAuthStateChanged(async u=>{ if(!u){ location.href="./login.html"; return; } myUid=u.uid; let d=await db.collection('users').doc(u.uid).get(); if(!d.exists){ location.href="./signup.html"; return; } let me=d.data(); if(me.banned){ alert("Banned"); auth.signOut(); return; } document.getElementById('myName').innerHTML=`${me.displayName} ${me.phone.includes('731155571')?'<span class="badge">ADMIN</span>':''}`; document.getElementById('myUser').innerHTML=`@${me.username} • ${me.phone} <span class="online"></span>`; document.getElementById('myPic').src=me.photoUrl||'./icon-512.png'; db.collection('users').doc(u.uid).update({online:true,lastSeen:firebase.firestore.FieldValue.serverTimestamp()}); loadChats(u.uid); });
+function showTab(t){ currentTab=t; document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); if(t==='chats'){ document.getElementById('tab-chats').classList.add('active'); loadChats(myUid); } if(t==='status') loadStatus(); if(t==='calls') loadCalls(); }
+function loadChats(uid){ currentTab='chats'; document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); document.getElementById('tab-chats').classList.add('active'); document.getElementById('fabBtn').textContent='+'; document.getElementById('fabBtn').onclick=()=>newChat(); db.collection('chats').where('members','array-contains',uid).onSnapshot(s=>{ let h=""; s.forEach(doc=>{ let c=doc.data(); h+=`<div class="row" onclick="location.href='./chat.html?id=${doc.id}'"><img src="${c.photo||'./icon-512.png'}"><div style="flex:1"><b>${c.otherName||'Chat'}</b><br><small style="color:#8aa5c9">${c.lastMessage||''}</small></div><small style="color:#8aa5c9">${c.lastTime||''}</small></div>`; }); document.getElementById('view').innerHTML=h||"<p style='text-align:center;color:#7fa0c2;margin-top:60px'>No chats yet<br>Tap + to start</p>"; }); }
+function loadStatus(){ document.getElementById('view').innerHTML=`<div style="padding:20px;text-align:center"><img src="./icon-512.png" width="70" style="border-radius:50%;border:3px solid #00e5ff"><h3 style="margin-top:10px">My Status</h3><p style="color:#8fb0d1;font-size:13px">Tap 📷 to add story (24h)</p><div id="statusList" style="margin-top:20px;text-align:left"></div></div>`; document.getElementById('fabBtn').textContent='📷'; document.getElementById('fabBtn').onclick=()=>location.href='./status.html'; db.collection('status').where('expireAt','>',new Date()).onSnapshot(s=>{ let h=""; s.forEach(d=>{ let st=d.data(); h+=`<div class="row"><img src="${st.photo||'./icon-512.png'}" style="border:2px solid #00e5ff"><div style="flex:1"><b>${st.username}</b><br><small style="color:#8aa5c9">${st.text||'Photo'}</small></div><small>${new Date(st.created?.toDate()).toLocaleTimeString()}</small></div>`; }); document.getElementById('statusList').innerHTML=h||"<p style='text-align:center;color:#5a7a9a'>No status</p>"; }); }
+function loadCalls(){ document.getElementById('view').innerHTML=`<div style="padding:20px;text-align:center;color:#8fb0d1"><h3>Calls</h3><p style="margin-top:20px">Voice & Video calls<br><small>WebRTC - Free & E2E</small></p><div id="callsList" style="margin-top:20px;text-align:left"></div></div>`; document.getElementById('fabBtn').textContent='📞'; document.getElementById('fabBtn').onclick=()=>{ let u=prompt('Call username/phone:'); if(u) location.href='./calls.html?user='+u; }; }
+async function newChat(){ let q=prompt("Enter Username or Phone:\nex: thabo_pol or +266..."); if(!q) return; q=q.toLowerCase().trim(); let snap=q.startsWith('+')||q.startsWith('0')?await db.collection('users').where('phone','==',q).get():await db.collection('users').where('username','==',q).get(); if(snap.empty) return alert("User not found"); let other=snap.docs[0].data(); if(other.uid===myUid) return alert("That's you"); let chatId=[myUid,other.uid].sort().join('_'); await db.collection('chats').doc(chatId).set({members:[myUid,other.uid], otherName:other.displayName, photo:other.photoUrl||'', lastMessage:'Chat started', lastTime:new Date().toLocaleTimeString(), lastTimeSort:Date.now(), created:firebase.firestore.FieldValue.serverTimestamp(), unread:0},{merge:true}); location.href='./chat.html?id='+chatId; }
+function handleFab(){ if(currentTab==='chats') newChat(); }
+</script>
+</body>
+  </html>
